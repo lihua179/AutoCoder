@@ -207,63 +207,6 @@ class ActionExecutor:
             replace_results=results
         )
 
-    def _execute_program(self, op: ProgramExecutionInput) -> ProgramExecutionFeedback:
-        # ToDo 被替换的模块
-        """执行程序命令"""
-        start_time = time.time()
-        killed = False
-
-        try:
-            result = subprocess.run(
-                op.command,
-                shell=True,
-                cwd=self.workspace,
-                timeout=op.timeout_seconds,
-                capture_output=True,
-                text=False  # 返回bytes类型
-            )
-
-            # 获取系统默认编码
-            encoding = locale.getpreferredencoding()
-
-            # 解码stdout和stderr，忽略错误
-            stdout = result.stdout.decode(encoding, errors='replace')
-            stderr = result.stderr.decode(encoding, errors='replace')
-
-            return ProgramExecutionFeedback(
-                status=FeedbackStatus.SUCCESS if result.returncode == 0 else FeedbackStatus.FAILURE,
-                action_type=op.action_type,
-                execution_time=time.time() - start_time,
-                stdout=stdout,
-                stderr=stderr,
-                killed_by_timeout=False
-            )
-
-
-        except subprocess.TimeoutExpired as e:
-
-            # 处理超时情况，同样需要解码
-            encoding = locale.getpreferredencoding()
-            stdout = e.stdout.decode(encoding, errors='replace') if e.stdout else ''
-            stderr = e.stderr.decode(encoding, errors='replace') if e.stderr else str(e)
-            return ProgramExecutionFeedback(
-                status=FeedbackStatus.FAILURE,
-                action_type=op.action_type,
-                execution_time=op.timeout_seconds,
-                stdout=stdout,
-                stderr=stderr,
-                killed_by_timeout=True
-            )
-        except Exception as e:
-            return ProgramExecutionFeedback(
-                status=FeedbackStatus.FAILURE,
-                action_type=op.action_type,
-                execution_time=time.time() - start_time,
-                stdout='',
-                stderr=str(e)
-
-            )
-
     def _list_dir_tree(self, path: str, op: FileOperationInput) -> FileOperationFeedback:
         """遍历目录并生成树形结构"""
         try:

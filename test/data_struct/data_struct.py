@@ -431,8 +431,8 @@ if __name__ == "__main__":
         ),
         CodeBlock(
             identifier="class MyProcessor",
-            old_content="class MyProcessor:\n    def run(self):\n        pass",
-            new_content="class MyProcessor:\n    def run(self):\n        print('processing...')"
+            old_content="class MyProcessor:\n    def main_pro(self):\n        pass",
+            new_content="class MyProcessor:\n    def main_pro(self):\n        print('processing...')"
         )
     ]
 
