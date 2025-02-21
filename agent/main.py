@@ -55,7 +55,7 @@ class AutoCoder:
             prompt = f.read()
         self.work_path = work_path
         self.chat_content = chat_content  # 需求
-        self.chat_api = ChatAPI(api_key='sk-e0311871be2740118a7083e8b0810902', prompt=prompt)
+        self.chat_api = ChatAPI(api_key='', prompt=prompt)
         self.file_exec = FileExecutor(self.work_path)
         self.cmd_check = ProgramCheck()  # 需要api调用接口
         self.cmd_exec = ParallelExecutor()
