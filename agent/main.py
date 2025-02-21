@@ -217,6 +217,6 @@ class AutoCoder:
 # 示例用法
 if __name__ == "__main__":
     work_path = fr"\test_work"
-    chat_content = '请你帮我在指定文件夹下编写一个图书管理系统,其中python编译器地址为xxx'
+    chat_content = f'请你帮我在指定文件夹{work_path}下编写一个图书管理系统,其中python编译器地址为xxx'
     auto_coder = AutoCoder(work_path=work_path, chat_content=chat_content)
     auto_coder.run()
