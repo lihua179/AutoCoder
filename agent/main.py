@@ -34,7 +34,7 @@ def extract_json_content(ai_response: str) -> Dict[str, Any]:
     Dict[str, Any]: 提取的结构化字段字典。
     """
     # 使用正则表达式提取JSON内容
-    match = re.search(r'```json\s*(.*?)\s*```', ai_response, re.DOTALL)
+    match = re.search(r'#####--\s*(.*?)\s*--#####', ai_response, re.DOTALL)
 
     if match:
         json_content = match.group(1)  # 提取匹配的内容
