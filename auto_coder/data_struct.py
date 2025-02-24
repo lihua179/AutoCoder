@@ -19,11 +19,7 @@ __all__ = [
 ]
 
 
-# request_id=operation_req.request_id,
-#                 reason=operation_req.reason,
-#                 status=operation_req.status,
-#                 file_feedbacks=file_results,
-#                 program_feedbacks=program_results
+
 @dataclass
 class OperationResponse:
     request_id: str
@@ -31,7 +27,7 @@ class OperationResponse:
     file_actions_result: list
     program_execs_result: list
     program_role: str = "system"
-    # question: Optional[str] = None
+
 
     def to_structured_text(self) -> str:
         """转换为符合API要求的结构化文本"""
@@ -77,7 +73,7 @@ class FileActionType(Enum):
     CREATE_FILE = "create_file"
     DELETE_FILE = "delete_file"
     READ_FILE = "read_file"
-    REPLACE_BLOCK = "replace_block"  # 区块替换操作
+    REPLACE_FILE = "replace_file"  # 区块替换操作
     CREATE_DIR = "create_directory"
     DELETE_DIR = "delete_directory"
     LIST_DIR_TREE = "list_tree"
@@ -329,24 +325,7 @@ class ProgramExecutionFeedback:
         return json.dumps(self.to_dict(), ensure_ascii=False, indent=2)
 
 
-# {
-#  'program0':{
-#             'name': "program0",  # program1的程序名称
-#             'stdout':"xxx,xxx", #program0的过程标准输出
-#             'stderr':"xxx,xxx", #program0的过程报错输出
-#             'runtime':xx, #program0的当前运行时间
-#             'max_limit_time':xxx, #program0的最大预期运行时间
-#           },
-#  'program1':{
-#             'name':"program1", #program1的程序名称
-#             'stdout':"xxx,xxx", #program1的过程标准输出
-#             'stderr':"xxx,xxx", #program1的过程报错输出
-#             'runtime':xx, #program1的当前运行时间
-#             'max_limit_time':xxx, #program1的最大预期运行时间
-#           }
-#
-#
-# }
+
 @dataclass
 class ProgramCheckFeedback:
     name: str
@@ -483,22 +462,20 @@ class Parser:
             )
         elif json_data['type'] == 'finish':
             # 程序执行结束，通知用户，可以给出文档，建议，总结之类的内容作为收尾
-            return WorkFinishNote(summary=json_data["summary"])
+            return WorkFinishNote(summary=json_data["metadata"]["summary"])
 
     @classmethod
     def _parse_file_actions(cls, actions: List[Dict]) -> List[FileOperationInput]:
         result = []
         for action in actions:
-            # print(action["modify_content"])
             action_type = FileActionType(action["action_type"])
-            # print()
             blocks = [
                 CodeBlock(
                     identifier=f"{mod['identifier']}",
                     old_content=mod["old_content"],
                     new_content=mod["new_content"]
                 ) for mod in action.get("modify_content", [])
-            ] if action_type == FileActionType.REPLACE_BLOCK else None
+            ] if action_type == FileActionType.REPLACE_FILE else None
 
             result.append(FileOperationInput(
                 action_type=action_type,
@@ -521,137 +498,4 @@ class Parser:
             ))
         return total_list
 
-    @classmethod
-    def parse_response(cls, json_data: Dict) -> OperationResponse:
-        """解析操作响应"""
-        return OperationResponse(
-            request_id=json_data["metadata"]["step_id"],
-            reason=json_data["metadata"]["reason"],
-            status=RequestStatus[json_data["metadata"]["status"].upper()],
-            file_feedbacks=cls._parse_file_feedbacks(json_data.get("file_actions", [])),
-            program_feedbacks=cls._parse_program_feedbacks(json_data.get("program_execs", {})),
 
-        )
-
-    @classmethod
-    def _parse_file_feedbacks(cls, actions: List[Dict]) -> List[FileOperationFeedback]:
-        # 实际实现需根据具体反馈结构调整
-        return []
-
-    @classmethod
-    def _parse_program_feedbacks(cls, exec_data: Dict) -> List[ProgramExecutionFeedback]:
-        # 实际实现需根据具体反馈结构调整
-        return []
-
-
-# 新增演示用例
-if __name__ == "__main__":
-    demo_json = {
-        "metadata": {
-            "step_id": "tetris_005",
-            "reason": "Windows环境专用清理和编码最终修复",
-            "status": "running"
-        },
-        "type": 'operate',
-        "file_operations": [
-            {
-                "action_type": "replace_block",
-                "path": "main.py",
-                "modify_content": [
-                    {
-                        "identifier": "sys_import_statement",
-                        "old_content": "import sys\n",
-                        "new_content": "import sys\nsys.dont_write_bytecode = True\n"
-                    }
-                ],
-                "request_reason": "防止Python生成.pyc文件"
-            }
-        ],
-        "program_operations": [
-            {
-                "name": '清理构建产物并运行程序',
-                "action_type": "execute",
-                "command": "del /s /q *.pyc && python -X utf8 main.py",
-                "timeout_seconds": 20,
-                "request_reason": "清理构建产物并运行程序"
-            }
-        ]
-    }
-    print(demo_json)
-    # 执行解析演示
-    request = Parser.parse_request(demo_json)
-    print(request)
-    # print("\n解析后的请求对象:")
-    # print(f"ID: {request.request_id}")
-    # print(f"状态: {request.status.value}")
-    # print(f"文件操作数: {len(request.file_operations)}")
-    # print(f"首个文件操作类型: {request.file_operations}")
-    # print(f"关联代码块数: {len(request.file_operations[0].blocks)}")
-    # print(f"程序命令: {request.program_operations[0].command}")
-    #
-    # 输出解析结果
-    print("\n序列化回JSON验证:")
-    print(request.to_json())
-# ========================
-# 使用示例
-# ========================
-if __name__ == "__main__":
-    # 区块替换示例：更新两个函数
-    replace_ops = [
-        CodeBlock(
-            identifier="def calculate()",
-            old_content="def calculate():\n    return 1+1",
-            new_content="def calculate():\n    return 2 * 2"
-        ),
-        CodeBlock(
-            identifier="class MyProcessor",
-            old_content="class MyProcessor:\n    def main_pro(self):\n        pass",
-            new_content="class MyProcessor:\n    def main_pro(self):\n        print('processing...')"
-        )
-    ]
-
-    # 创建请求
-    request = OperationRequest(
-        request_id="func_update_001",
-        reason='优化核心函数逻辑',
-        file_operations=[
-            FileOperationInput(
-                action_type=FileActionType.REPLACE_BLOCK,
-                path="/src/main.py",
-                blocks=replace_ops,
-                request_reason="优化核心函数逻辑"
-            )
-        ]
-    )
-    # print("区块替换请求示例:")
-    # print(request.to_json())
-
-    # 对应反馈
-    response = OperationResponse(
-        request_id="func_update_001",
-        reason='reason',
-        status=RequestStatus.COMPLETED,
-        file_feedbacks=[
-            FileOperationFeedback(
-                status=FeedbackStatus.SUCCESS,
-                action_type=FileActionType.REPLACE_BLOCK,
-                path="/src/main.py",
-                replace_results=[
-                    ReplaceResult(
-                        identifier="def calculate()",
-                        replaced=True,
-                        matches_found=1,
-                        verification_passed=True
-                    ),
-                    ReplaceResult(
-                        identifier="class MyProcessor",
-                        replaced=True,
-                        matches_found=1,
-                        verification_passed=True
-                    )
-                ]
-            )
-        ]
-    )
-    # print("\n区块替换反馈示例:")
-    # print(response.to_json())

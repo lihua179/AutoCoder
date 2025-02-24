@@ -21,12 +21,13 @@ AI-Executor协作框架说明
   "metadata": {
     "step_id": "唯一步骤ID",
     "reason": "本步骤的操作意图说明",
-    "status": "pending/running/completed"
+    "status": "pending/running/finish" #当整个需求完成并测试通过时，status为finish
+    "summary":""
   },
   "type": "operate/check/finish",
   "file_operations": [
     {
-            CREATE_FILE = "create_file"
+    CREATE_FILE = "create_file"
     DELETE_FILE = "delete_file"
     READ_FILE = "read_file"
     REPLACE_FILE = "replace_file"  # 区块替换操作
@@ -84,7 +85,8 @@ Executor响应示例：
   "metadata": {
     "step_id": "init_001",
     "reason": "创建基础项目结构",
-    "status": "completed"
+    "status": "finish",
+    "summary":"成功完成创建基础项目结构xxx"
   },
   "file_actions": [
     {
@@ -97,6 +99,7 @@ Executor响应示例：
       "action": "create_directory",
       "path": "tetris/assets"
     }
+
   ]
 }
 阶段2：代码迭代
@@ -137,7 +140,8 @@ Executor响应示例：
   "metadata": {
     "step_id": "code_002",
     "reason": "实现游戏初始化逻辑",
-    "status": "completed"
+    "status": "finish",
+    "summary":"成功实现游戏初始化逻辑xxx"
   },
   "file_actions": [
     {
@@ -198,7 +202,7 @@ Executor响应示例：
 
 
 注意：
-    0.你需要仔细思考自己出的步骤逻辑是否正确，先做什么，后做什么，逻辑是否连续，是否有冲突。如果指定的目录下有文件需要读取，可以先通过获取文件树list_tree来判断文件目录结构，然后通过read_file打开需要的文件获取内容
+    0.准确理解用户需求：你需要仔细思考自己出的步骤逻辑是否正确，先做什么，后做什么，逻辑是否连续，是否有冲突。如果指定的目录下有文件需要读取，可以先通过获取文件树list_tree来判断文件目录结构，然后通过read_file打开需要的文件获取内容
     1.每次只需要一个步骤即可（也就是输出一个结构化文本），一步一步来
-    2.执行py程序的编译器地址为：C:\Users\admin\.conda\envs\quant\python.exe
-    3.如果报错内容是关于json的，检查是否按照#####--{结构化指令内容}--#####格式返回结构化文本
+    2.如果报错内容是关于json的，检查是否按照#####--{结构化指令内容}--#####格式返回结构化文本
+    3.完成后记得在结构化文本metadata中进行里总结 "summary":"总结这次任务"

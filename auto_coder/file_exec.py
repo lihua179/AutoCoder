@@ -5,22 +5,13 @@
 @time: 2025/2/21 12:34
 @describe:自定义描述
 """
-import os
-import shutil
-import subprocess
-import time
-from datetime import datetime
-from typing import List
-from dataclasses import asdict
 
-from typing import Dict, List, Any
-import json
-import locale
 from enum import Enum
 from dataclasses import dataclass
-from typing import List, Optional, Dict, Union
-import json
-from datetime import datetime
+from typing import List, Optional, Dict
+import os
+import shutil
+import locale
 import unittest
 
 encoding = locale.getpreferredencoding()
@@ -35,9 +26,11 @@ __all__ = [
     "FileOperationFeedback",
     "ReplaceResult"
 ]
+
+
 def is_valid_extension(filename):
     """检查文件后缀是否有效"""
-    valid_extensions = ['.md', '.py', '.txt', '.log', '.csv','json']
+    valid_extensions = ['.md', '.py', '.txt', '.log', '.csv', 'json']
     return any(filename.endswith(ext) for ext in valid_extensions)
 
 
@@ -79,7 +72,7 @@ class FileActionType(Enum):
     CREATE_FILE = "create_file"
     DELETE_FILE = "delete_file"
     READ_FILE = "read_file"
-    REPLACE_BLOCK = "replace_block"  # 区块替换操作
+    REPLACE_FILE = "replace_file"  # 区块替换操作
     CREATE_DIR = "create_directory"
     DELETE_DIR = "delete_directory"
     LIST_DIR_TREE = "list_tree"
@@ -164,7 +157,7 @@ class FileExecutor:
                 return self.create_file(full_path, op)
             elif op.action_type.value == FileActionType.DELETE_FILE.value:
                 return self.delete_file(full_path, op)
-            elif op.action_type.value == FileActionType.REPLACE_BLOCK.value:
+            elif op.action_type.value == FileActionType.REPLACE_FILE.value:
                 return self.replace_blocks(full_path, op)
             elif op.action_type.value == FileActionType.READ_FILE.value:
                 return self.read_file(full_path, op)
@@ -398,5 +391,3 @@ class FileExecutor:
             )
 
 
-if __name__ == '__main__':
-    unittest.main()

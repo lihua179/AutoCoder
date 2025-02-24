@@ -5,15 +5,17 @@
 @time: 2024/11/13 0:46
 @describe: 提供与外部对话的回调函数接口
 """
-import dashscope
-import sys
 
-# AProject/A/aaa世界规律/期货认知/程序/ai/code_agent/main_pro/CodeAgent/api/chat_api.py
+import sys
+from openai import OpenAI
+
+
 
 __all__ = [
     "ChatAPI",
     "CharPrinter"
 ]
+
 
 # 其他代码...
 class CharPrinter:
@@ -47,8 +49,12 @@ class CharPrinter:
     def flush(self):
         """强制刷新当前行"""
         if self.buffer:
-            sys.stdout.write(''.join(self.buffer))
-            sys.stdout.flush()
+            try:
+                sys.stdout.write(''.join(self.buffer))
+                sys.stdout.flush()
+            except UnicodeEncodeError as e:
+                print(e)
+                pass
             self.buffer = []
             self.visible_length = 0
 
@@ -58,8 +64,11 @@ class CharPrinter:
 
 
 class ChatAPI:
-    def __init__(self, api_key, model="deepseek-r1", callback_content=None, callback_reason_content=None,prompt=''):
+    def __init__(self, api_key, model="deepseek-r1",
+                 base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+                 callback_content=None, callback_reason_content=None, prompt=''):
         self.api_key = api_key
+        self.base_url = base_url
         self.model = model
         self.req = [{"role": 'system', "content": prompt}]
         self.printer = CharPrinter(max_width=20)  # 初始化打印机
@@ -75,21 +84,34 @@ class ChatAPI:
         self.req.append({'role': 'user', 'content': message})
 
     def get_response(self):
-        """获取API的响应"""
-        responses = dashscope.Generation.call(
+        client = OpenAI(
+            # 若没有配置环境变量，请用百炼API Key将下行替换为：api_key="sk-xxx",
             api_key=self.api_key,
-            model=self.model,
-            messages=self.req,
-            result_format='message',
-            stream=True,
-            incremental_output=True
+            # 如何获取API Key：https://help.aliyun.com/zh/model-studio/developer-reference/get-api-key
+            base_url=self.base_url
         )
-
+        responses = client.chat.completions.create(
+            model=self.model,  # 此处以 deepseek-r1 为例，可按需更换模型名称。
+            messages=self.req,
+            stream=True,
+        )
+        #     for chunk in stream:
+        #         # chunk_message = chunk.choices[0].delta
+        #         #     if not chunk_message.content:
+        #         #         continue
+        #         if chunk.choices[0].delta.content is not None:
+        #             text += str(chunk.choices[0].delta.content)
+        #             print(chunk.choices[0].delta.content, end="")
         res_total = ''
         for response in responses:
-            reason = response.output.choices[0].message.reasoning_content
-            self.reason_callback(reason)  # 调用reason_callback
-            res = response.output.choices[0].message.content
+            try:
+                reason = response.choices[0].delta.reasoning_content
+                if reason:
+                    self.reason_callback(reason)  # 调用reason_callback
+            except Exception as e:
+                pass
+
+            res = response.choices[0].delta.content
             if res:
                 res_total += res
                 self.callback_stream_single(res)  # 调用callback_stream_single
@@ -104,24 +126,20 @@ class ChatAPI:
 
     def callback_stream_single(self, res: str):
         """打印单个响应"""
+        # try:
         self.printer.dynamic_single_callback(res)
+        # except UnicodeEncodeError as e:
+        #     pass
         if self.callback_content:
             self.callback_content(res)
 
     def reason_callback(self, reason):
         """打印推理内容"""
+        # try:
         self.printer.dynamic_single_callback(reason)
+        # except UnicodeEncodeError as e:
+        #     pass
         if self.callback_reason_content:
             self.callback_reason_content(reason)
 
 
-# 使用示例
-if __name__ == '__main__':
-    # 跳过表情符号的输出
-    print("欢迎使用聊天API！")
-    
-    # chat_api = ChatAPI(api_key='sk-e0311871be2740118a7083e8b0810902')
-    # response = chat_api.chat("你好，能帮我吗？")
-    # print(response)
-    # response = chat_api.chat("1+1=9吗")
-    # print(response)

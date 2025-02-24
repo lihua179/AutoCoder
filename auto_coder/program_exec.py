@@ -1,13 +1,11 @@
 # -*- coding: utf-8 -*-
 """
 @author: Zed
-@file: program_exec.txt
+@file: program_exec.py
 @time: 2025/2/19 20:09
 @describe:自定义描述
 """
-from typing import List, Dict, Callable, Optional
-import threading
-import time
+from typing import List
 from dataclasses import dataclass
 import subprocess
 import threading
@@ -17,7 +15,7 @@ import signal
 from typing import Callable, Optional, Dict
 from enum import Enum
 
-# AProject/A/aaa世界规律/期货认知/程序/ai/code_agent/main_pro/CodeAgent/program_exec/program_exec.py
+
 
 __all__ = [
     "ParallelExecutor",
@@ -49,13 +47,6 @@ class ProgramExecutionFeedback:
     returncode: str
     timeout: bool = False
 
-    #     print(f"输出内容: {result['output']}")
-    #     print(f"错误信息: {result['error']}")
-    #     print(f"返回码: {result['returncode']}")
-    #     print(f"是否超时: {result['timeout']}")
-    #     print(f"进程ID: {result['pid']}")
-    #     print(f"执行时间: {result['execution_time']}秒")
-    #     print(f"是否完成: {result['finished']}")
     def to_dict(self):
         return {
             "status": self.status.value,
@@ -102,32 +93,25 @@ class CommandExecutor:
         if self.active_process and not self.last_read:
             self.last_read = True
             self.running = False
-            # print('读取剩余缓存')
+
             with self.lock:
-                # print('读取剩余stdout')
                 remaining = self.active_process.stdout.read()
                 if remaining:
                     self.output_buffer.append(remaining.strip())
-                # print('剩余stdout读取结束')
-                # print('读取剩余stderr')
                 err_remaining = self.active_process.stderr.read()
                 if err_remaining:
                     self.error_buffer.append(err_remaining.strip())
-                # print('剩余stderr读取结束')
                 self.active_process = None
-        # pass
 
     def _get_last(self):
         if self.active_process and not self.last_read:
             self.last_read = True
             self.running = False
-            print('读取最新缓存')
+
             with self.lock:
-                print('读取最新stdout')
                 remaining = self.active_process.stdout.readline()
                 if remaining:
                     self.output_buffer.append(remaining.strip())
-                print('最新stdout读取结束')
                 self.active_process = None
 
     def execute(
@@ -135,8 +119,6 @@ class CommandExecutor:
             name: str,
             command: str,
             timeout: int = 30,
-            # realtime_callback: Optional[Callable[[str], None]] = None,
-            # error_callback: Optional[Callable[[str], None]] = None
     ) -> Dict:
         """
         执行命令并捕获输出
@@ -159,14 +141,11 @@ class CommandExecutor:
         try:
             start_time = time.time()
             self.running = True
-            # stdout=subprocess.PIPE,
-            #         stderr=subprocess.STDOUT,
-            #         universal_newlines=True,
-            #         bufsize=1  # 行缓冲模式
+
             # 启动子进程
             self.active_process = subprocess.Popen(
                 command,
-                # shell=True,
+                shell=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
@@ -179,7 +158,6 @@ class CommandExecutor:
             output_thread = threading.Thread(
                 target=self._capture_output,
                 args=()
-                #     #   args = (realtime_callback, error_callback)
             )
             output_thread.daemon = True
             output_thread.start()
@@ -203,10 +181,13 @@ class CommandExecutor:
             # 收集剩余输出
             with self.lock:
 
-                # print()
+
+                MAX_LENGTH = 1000  # 约束stdout的输出缓存
+                N = MAX_LENGTH // 2  # 计算前n个和后n个字符的长度
                 result["output"] = "\n".join(self.output_buffer)
                 result["error"] = "\n".join(self.error_buffer)
-
+                if len(result["output"]) > MAX_LENGTH:
+                    result["output"] = result["output"][:N] + '...' + result["output"][-N:]  # 取前n个和后n个字符
             result["execution_time"] = round(time.time() - start_time, 2)
 
         except Exception as e:
@@ -217,7 +198,7 @@ class CommandExecutor:
 
         return result
 
-    def _capture_output(self, realtime_callback=None, error_callback=None):
+    def _capture_output(self, realtime_callback=None):
         """实时捕获输出流的线程函数"""
         while self.running and self.active_process is not None:
             # 捕获标准输出
@@ -240,11 +221,12 @@ class CommandExecutor:
             if is_all:
                 self._get_remain()
             else:
-                self._get_last()
+                get_last = threading.Thread(target=self._get_last)
+                get_last.start()
+                get_last.join(5)
 
             try:
                 if os.name == 'nt':
-                    # print(f'终止程序:{name}')
                     # Windows系统
                     subprocess.run(['taskkill', '/F', '/T', '/PID', str(self.active_process.pid)])
                 else:
@@ -271,20 +253,6 @@ class CommandExecutor:
         self.output_callbacks.append(callback)
 
 
-# @dataclass
-# class ProgramExecutionInput:
-#     name:str
-#     command: str
-#     timeout_seconds: Optional[int] = None
-#     request_reason: Optional[str] = None
-#
-#     def to_dict(self):
-#         return {
-#             "name": self.name,
-#             "command": self.command,
-#             "timeout": self.timeout_seconds,
-#             "reason": self.request_reason
-#         }
 
 @dataclass
 class ProgramExecutionInput:
@@ -318,7 +286,6 @@ class ProgramCheck:
 
     # 分析函数示例
     def __call__(self, output_dict: dict):
-        # print('output_dict',output_dict)
         # 过程监控函数+终止控制
         if time.time() - self.last_end_time > self.set_check_interval:
             self.last_end_time = time.time()
@@ -398,8 +365,6 @@ class ParallelExecutor:
             name=config.name,
             command=config.command,
             timeout=config.timeout,
-            # realtime_callback=config.realtime_callback,
-            # error_callback=config.error_callback
         )
 
         with self.lock:
@@ -409,7 +374,7 @@ class ParallelExecutor:
                 status = 'finished'
             else:
                 status = 'aborted'
-            # print(config.name, status)
+
             self.results[config.name] = ProgramResult(
                 name=config.name,
                 stdout=result["output"],
@@ -435,9 +400,6 @@ class ParallelExecutor:
                                               'errors': "\n".join(executor.error_buffer),
                                               }
 
-                # print('cost', t1 - t0)
-            # print(self.output_dict)
-
             # 执行分析：
             #     这里会将outputs, errors反馈给api，根据api判断是否执行终止动作
             abort_list = program_check(self.output_dict)
@@ -447,95 +409,5 @@ class ParallelExecutor:
                         print(f"[监控] 中止程序 {name}")
                         self.executors[name].stop(name, is_all=False)
             time.sleep(0.1)
-            # time.sleep(self.analysis_interval)
 
 
-# 使用示例
-if __name__ == "__main__":
-    def print_output(line):
-        #
-        pass
-        # print(f"[输出] {line}")
-
-
-    def print_error(line):
-        pass
-        # print(f"[错误] {line}")
-
-
-    # ProgramConfig的realtime_callback，error_callback负责获取实时输出内容
-    # analyze_running负责获取累计输出内容，根据api反馈需求，应该把累计输出需求作为反馈信息
-    # 程序配置
-    configs = [
-        ProgramExecutionInput(
-            name="数据采集",
-            command="python data_collector.py",
-            timeout=2,
-            # realtime_callback=print_output,
-            # error_callback=print_error,
-            # realtime_callback=lambda x: print(f"数据采集实时数据: {x}")
-        ),
-        ProgramExecutionInput(
-            name="模型训练",
-            command="python model_trainer.py",
-            timeout=10,
-            # realtime_callback=lambda x: print(f"训练输出实时数据: {x}")
-        )
-    ]
-
-
-    def send_feedback(res):
-        print('send_feedback:', res)
-        time.sleep(10)
-        print('受到api')
-        # 假设api交互时间10s过去了，并且截断‘模型训练’
-        # return
-        return ['数据采集']
-        # pass
-
-
-    # 执行程序
-    executor = ParallelExecutor()
-    program_check = ProgramCheck(send_feedback, 3)
-    results = executor.execute_programs(configs)
-    # results就是执行完的程序实例化，转给程序结束反馈对象
-    # 打印结果
-    for name, result in results.items():
-        print(f"\n程序: {name}")
-        print(f"状态: {result.status}")
-        print(f"执行时间: {result.exec_time:.2f}s")
-        print(f"返回码: {result.return_code}")
-        print(f"标准输出:\n{result.stdout[:200]}...")
-        print(f"错误输出:\n{result.stderr[:200]}...")
-    program_list = list(results.values())
-    print(program_list)
-    # ProgramExecutionFeedback
-
-    # 包装一下results
-    # @dataclass
-    # class ProgramExecutionFeedback:
-    #     status: FeedbackStatus
-    #     action_type: ProgramActionType
-    #     execution_time: float
-    #     stdout: str
-    #     stderr: str
-    #     returncode: str
-    #     timeout: bool = False
-    #
-    #     #     print(f"输出内容: {result['output']}")
-    #     #     print(f"错误信息: {result['error']}")
-    #     #     print(f"返回码: {result['returncode']}")
-    #     #     print(f"是否超时: {result['timeout']}")
-    #     #     print(f"进程ID: {result['pid']}")
-    #     #     print(f"执行时间: {result['execution_time']}秒")
-    #     #     print(f"是否完成: {result['finished']}")
-    #     def to_dict(self):
-    #         return {
-    #             "status": self.status.value,
-    #             "action": self.action_type.value,
-    #             "exec_time": self.execution_time,
-    #             "stdout": self.stdout,
-    #             "stderr": self.stderr,
-    #             "returncode": self.stderr,
-    #             "timeout": self.timeout
-    #         }
