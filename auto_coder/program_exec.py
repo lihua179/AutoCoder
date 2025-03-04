@@ -14,7 +14,7 @@ import os
 import signal
 from typing import Callable, Optional, Dict
 from enum import Enum
-
+from copy import deepcopy
 
 
 __all__ = [
@@ -227,6 +227,7 @@ class CommandExecutor:
 
             try:
                 if os.name == 'nt':
+                    # print(f'终止程序:{name}')
                     # Windows系统
                     subprocess.run(['taskkill', '/F', '/T', '/PID', str(self.active_process.pid)])
                 else:
@@ -355,8 +356,9 @@ class ParallelExecutor:
         # 等待所有线程完成
         for thread in threads:
             thread.join()
-
-        return self.results
+        _result=deepcopy(self.results)
+        self.results={}
+        return _result
 
     def _run_single_program(self, config: ProgramExecutionInput):
         """执行单个程序"""

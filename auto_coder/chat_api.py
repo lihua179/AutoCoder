@@ -9,7 +9,7 @@
 import sys
 from openai import OpenAI
 
-
+# AProject/A/aaa世界规律/期货认知/程序/ai/code_agent/main_pro/CodeAgent/api/chat_api.py
 
 __all__ = [
     "ChatAPI",
@@ -70,6 +70,7 @@ class ChatAPI:
         self.api_key = api_key
         self.base_url = base_url
         self.model = model
+
         self.req = [{"role": 'system', "content": prompt}]
         self.printer = CharPrinter(max_width=20)  # 初始化打印机
         self.callback_content = callback_content
@@ -88,12 +89,14 @@ class ChatAPI:
             # 若没有配置环境变量，请用百炼API Key将下行替换为：api_key="sk-xxx",
             api_key=self.api_key,
             # 如何获取API Key：https://help.aliyun.com/zh/model-studio/developer-reference/get-api-key
-            base_url=self.base_url
+            base_url=self.base_url,
+            timeout=1200.0  # 设置更长的超时时间，单位为秒
         )
         responses = client.chat.completions.create(
             model=self.model,  # 此处以 deepseek-r1 为例，可按需更换模型名称。
             messages=self.req,
             stream=True,
+            # max_tokens=10000  # 限制回复最多生成500个token
         )
         #     for chunk in stream:
         #         # chunk_message = chunk.choices[0].delta
@@ -143,3 +146,17 @@ class ChatAPI:
             self.callback_reason_content(reason)
 
 
+# 使用示例
+if __name__ == '__main__':
+    # 跳过表情符号的输出
+    print("欢迎使用聊天API！")
+
+    chat_api = ChatAPI(api_key='sk-xxx',
+                       base_url='https://api.deepseek.com',
+                       model='deepseek-reasoner',
+                       prompt=''
+                       )
+    response = chat_api.chat("你好，能帮我吗？")
+    print(response)
+    response = chat_api.chat("1+1=9吗")
+    print(response)

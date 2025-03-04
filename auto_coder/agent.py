@@ -6,7 +6,7 @@ from typing import Any, Dict
 from chat_api import ChatAPI
 from file_exec import FileExecutor
 from program_exec import ParallelExecutor, ProgramCheck, ProgramCheckFeedback
-
+import os
 from data_struct import (
     Parser,
     OperationResponse,
@@ -36,38 +36,48 @@ def extract_json_content(ai_response: str) -> Dict[str, Any]:
             structured_data = json.loads(json_content)
             return structured_data
         except json.JSONDecodeError:
-            raise ValueError("无法解析提取的JSON内容，确保其为有效的JSON格式。")
+            raise ValueError("无法正确解析提取的JSON内容，确保其为有效的JSON格式（####--json内容--####）。")
     else:
-        raise ValueError("未找到有效的JSON结构化内容。")
+        raise ValueError("未找到有效的JSON结构化内容，确保其为有效的JSON格式（####--json内容--####）。")
 
 
 class AutoCoder:
     # 关于配置信息，暂时先写死，等稳定后改用config配置
-    def __init__(self, work_path='', chat_content='', chat_api_config: dict = None):
-
+    def __init__(self, work_path='', chat_content='', chat_api_config: dict = None, chat_path='', task_name=''):
+        self.task_name = task_name
         self.work_path = work_path
         self.chat_content = chat_content  # 需求
         self.chat_api = ChatAPI(**chat_api_config)
+        self.chat_path = chat_path
         self.file_exec = FileExecutor(self.work_path)
         self.cmd_check = ProgramCheck()  # 需要api调用接口
         self.cmd_exec = ParallelExecutor()
 
     def load_his_chat(self):
-        with open('/chat_his_list.txt') as f:
+
+        with open(self.chat_path + '\\' + self.task_name, errors='ignore') as f:
             res = f.read()
         self.chat_api.req = eval(res)
 
     def save_chat_his(self):
         chat_his_list = self.chat_api.req
+
+        base_chat_path = self.chat_path + '\\' + self.task_name
         # print('对话结束，收尾工作')
-        with open(self.work_path + '/chat_his_list.txt', 'w') as f:
+        if not os.path.exists(base_chat_path):
+            os.makedirs(base_chat_path)
+        with open(base_chat_path + '\\' + 'chat_his_list.txt', 'w', errors='ignore') as f:
             f.write(str(chat_his_list))
 
     def save_tail(self, chat_his_list, summary):
         print('对话结束，收尾工作')
-        with open(self.work_path + '/chat_his_list.txt', 'w') as f:
+        base_chat_path = self.chat_path + '\\' + self.task_name
+        # print('对话结束，收尾工作')
+        if not os.path.exists(base_chat_path):
+            os.makedirs(base_chat_path)
+        with open(base_chat_path + '\\' + 'chat_his_list.txt', 'w', errors='ignore') as f:
             f.write(str(chat_his_list))
-        with open(self.work_path + '/summary.txt', 'w') as f:
+        with open(base_chat_path + '\\' + 'summary.txt', 'w', errors='ignore') as f:
             f.write(summary)
 
     def run(self):
@@ -89,15 +99,20 @@ class AutoCoder:
             try:
                 structured_data = extract_json_content(response)
             except ValueError as e:
-                print(response)
+                print('error:start', response, 'error_end')
                 struct_res = 'ValueError: ' + str(
-                    e) + '你传输的结构化文本错误，没有按照指定的```json***struct_data***{结构化数据}***struct_data***```格式！系统无法读取'
+                    e) + '''[系统报错]：你通过api传输的结构化文本形式错误，没有按照指定的文本格式返回结构化数据（#####--结构化文本内容xxx--#####）（系统解析结构化json文本的方式：match = re.search(r'#####--\s*(.*?)\s*--#####', ai_response, re.DOTALL)
+    if match:
+        json_content = match.group(1)  # 提取匹配的内容）！系统无法读取'''
                 print('结构化输出报错：', struct_res)
                 continue
             print()
             print('——' * 50)
             print('ai指令:')
-            print(json.dumps(structured_data, ensure_ascii=False, indent=4))
+            try:
+                print(json.dumps(structured_data, ensure_ascii=False, indent=4))
+            except UnicodeEncodeError as e:
+                pass
 
             operation_req = Parser.parse_request(structured_data)
             if operation_req.type == 'finish' or operation_req.type == 'completed':
@@ -124,6 +139,33 @@ class AutoCoder:
             print()
             print('——' * 50)
             print('动作执行完毕')
-            print(struct_res)
+            try:
+                print(struct_res)
+            except UnicodeEncodeError as e:
+                pass
 
 
+#
+if __name__ == "__main__":
+    work_path = fr"\task_xxx"
+
+    chat_content = fr"""请你在{work_path}文件夹下xxx"""
+    chat_path = fr"\chat_path"
+    prompt_path = '.\prompt.txt'
+    task_name = 'task_xxx'
+    with open(prompt_path) as f:
+        prompt = f.read()
+
+    chat_api_config = dict(api_key='sk-',
+                           base_url='https://',
+                           model='claude-3-7-sonnet-20250219',
+                           prompt=prompt)
+
+    auto_coder = AutoCoder(
+        work_path=work_path,
+        chat_content=chat_content,
+        chat_api_config=chat_api_config,
+        chat_path=chat_path,
+        task_name=task_name, )
+    # auto_coder.load_his_chat()  # 加载历史对话，继续上次对话
+    auto_coder.run()

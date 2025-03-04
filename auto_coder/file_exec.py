@@ -309,7 +309,7 @@ class FileExecutor:
             'files': ['test_file.txt'],
             'dirs': {
                 'data': {
-                    'files': ['d.py'],
+                    'files': ['d.txt.py'],
                     'dirs': {}
                 }
             }

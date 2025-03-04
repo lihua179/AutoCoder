@@ -1,5 +1,5 @@
 from enum import Enum
-from dataclasses import dataclass,asdict
+from dataclasses import dataclass, asdict
 from typing import List, Optional, Dict, Union
 import json
 from datetime import datetime
@@ -19,7 +19,6 @@ __all__ = [
 ]
 
 
-
 @dataclass
 class OperationResponse:
     request_id: str
@@ -27,7 +26,6 @@ class OperationResponse:
     file_actions_result: list
     program_execs_result: list
     program_role: str = "system"
-
 
     def to_structured_text(self) -> str:
         """转换为符合API要求的结构化文本"""
@@ -325,7 +323,6 @@ class ProgramExecutionFeedback:
         return json.dumps(self.to_dict(), ensure_ascii=False, indent=2)
 
 
-
 @dataclass
 class ProgramCheckFeedback:
     name: str
@@ -396,7 +393,6 @@ class OperationRequest:
     reason: str
     file_operations: List[FileOperationInput] = None
     program_operations: List[ProgramExecutionInput] = None
-    status: RequestStatus = RequestStatus.PENDING
     created_at: str = datetime.now().isoformat()
     type = 'operate'
 
@@ -404,7 +400,6 @@ class OperationRequest:
         return json.dumps({
             "step_id": self.request_id,
             'reason': self.reason,
-            "status": self.status.value,
             "file_operations": [op.to_dict() for op in self.file_operations] if self.file_operations else [],
             "programs_operations": [op.to_dict() for op in self.program_operations] if self.program_operations else [],
             "created": self.created_at,
@@ -445,11 +440,13 @@ class Parser:
     @classmethod
     def parse_request(cls, json_data: Dict) -> Union[OperationRequest, ProgramCheckRequest, WorkFinishNote]:
         """解析操作请求"""
-        if json_data['type'] == 'operate':
+        if json_data['type'] == 'finish' :
+            # 程序执行结束，通知用户，可以给出文档，建议，总结之类的内容作为收尾
+            return WorkFinishNote(summary=json_data["metadata"]["summary"])
+        elif json_data['type'] == 'operate':
             return OperationRequest(
                 request_id=json_data["metadata"]["step_id"],
                 reason=json_data["metadata"]["reason"],
-                status=RequestStatus[json_data["metadata"]["status"].upper()],
                 file_operations=cls._parse_file_actions(json_data.get("file_operations", [])),
                 program_operations=cls._parse_program_execs(json_data.get("program_operations", [])),
                 created_at=json_data["metadata"].get("timestamp")
@@ -460,9 +457,6 @@ class Parser:
                 request_id=json_data["metadata"]["step_id"],
                 program_operations=json_data["program_operations"],
             )
-        elif json_data['type'] == 'finish':
-            # 程序执行结束，通知用户，可以给出文档，建议，总结之类的内容作为收尾
-            return WorkFinishNote(summary=json_data["metadata"]["summary"])
 
     @classmethod
     def _parse_file_actions(cls, actions: List[Dict]) -> List[FileOperationInput]:
@@ -497,5 +491,3 @@ class Parser:
                 request_reason=exec_program.get("expected_output")
             ))
         return total_list
-
-
