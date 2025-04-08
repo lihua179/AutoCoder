@@ -168,44 +168,9 @@ class RequestStatus(Enum):
 
 
 # ========================
-# 区块替换专用结构
-# ========================
-@dataclass
-class CodeBlock:
-    """代码区块标识（通过函数名/唯一标识定位）"""
-    identifier: str  # 如函数名：def my_function()
-    old_content: str  # 需要匹配的原始代码
-    new_content: str  # 替换后的新代码
-
-    def to_dict(self):
-        return {
-            "id": self.identifier,
-            "old": self.old_content,
-            "new": self.new_content
-        }
-
-
-@dataclass
-class ReplaceResult:
-    """单个区块替换结果"""
-    identifier: str
-    replaced: bool  # 是否成功替换
-    matches_found: int  # 找到的匹配数量
-    verification_passed: bool  # 替换后校验是否通过
-    error_detail: Optional[str] = None
-
-    def to_dict(self):
-        return {
-            "id": self.identifier,
-            "replaced": self.replaced,
-            "matches": self.matches_found,
-            "verified": self.verification_passed,
-            "error": self.error_detail
-        }
-
-
-# ========================
 # 操作指令数据结构
+# Note: Redundant definitions of CodeBlock and ReplaceResult were removed from here.
+# The definitions near the top of the file are kept.
 # ========================
 @dataclass
 class FileOperationInput:
@@ -440,7 +405,8 @@ class Parser:
     @classmethod
     def parse_request(cls, json_data: Dict) -> Union[OperationRequest, ProgramCheckRequest, WorkFinishNote]:
         """解析操作请求"""
-        if json_data['type'] == 'finish' :
+        # print('json_data',json_data)
+        if json_data['type'] == 'finish':
             # 程序执行结束，通知用户，可以给出文档，建议，总结之类的内容作为收尾
             return WorkFinishNote(summary=json_data["metadata"]["summary"])
         elif json_data['type'] == 'operate':
@@ -463,13 +429,21 @@ class Parser:
         result = []
         for action in actions:
             action_type = FileActionType(action["action_type"])
-            blocks = [
-                CodeBlock(
-                    identifier=f"{mod['identifier']}",
-                    old_content=mod["old_content"],
-                    new_content=mod["new_content"]
-                ) for mod in action.get("modify_content", [])
-            ] if action_type == FileActionType.REPLACE_FILE else None
+            blocks = None
+            if action_type == FileActionType.REPLACE_FILE:
+                blocks = []
+                # Assuming the AI provides 'identifier', 'old_content', 'new_content' in each dict within 'modify_content'
+                for mod in action.get("modify_content", []):
+                    identifier = mod.get("identifier") # Get identifier safely
+                    if not identifier:
+                         # Handle missing identifier, maybe log a warning or raise error
+                         print(f"Warning: Missing 'identifier' in modify_content block for {action['path']}. Using placeholder.")
+                         identifier = "MISSING_IDENTIFIER" # Or skip this block
+                    blocks.append(CodeBlock(
+                        identifier=identifier, # Use extracted identifier
+                        old_content=mod.get("old_content", ""), # Use get for safety
+                        new_content=mod.get("new_content", "")  # Use get for safety
+                    ))
 
             result.append(FileOperationInput(
                 action_type=action_type,
